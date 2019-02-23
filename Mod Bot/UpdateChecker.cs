@@ -28,6 +28,7 @@ namespace InternalModBot
 
             Thread updateThread = new Thread(ThreadSequence); // In separate thread because it waits for a web response
             updateThread.Start();
+            ModsManager.Instance.mods.Add(new testMultiplayerMod());
         }
 
         private void ThreadSequence()
