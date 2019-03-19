@@ -7,6 +7,7 @@ GameFlowManager
     gameObject.AddComponent<ModsManager>();
 	gameObject.AddComponent<UpdateChecker>();
 	gameObject.AddComponent<ModsPanelManager>();
+	gameObject.AddComponent<MultiplayerMenuManager>();
 
 }
 Firstpersonmover
