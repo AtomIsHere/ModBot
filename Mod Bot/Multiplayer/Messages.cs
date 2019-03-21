@@ -17,7 +17,7 @@ namespace InternalModBot
         UpdatePlayerTransform = 253,
         KeyPressEvent = 254,
         MouseOffsetEvent = 255,
-        CreatePlayerMessage = 256
+        CreatePlayerMessage = 251
 
     }
 
@@ -110,6 +110,7 @@ namespace InternalModBot
 
         static void PlayerCreateMessageClient(NetworkMessage netMsg)
         {
+            Console.WriteLine("nulk-1.5");
             PlayerCreateMessage myMsg = netMsg.ReadMessage<PlayerCreateMessage>();
 
             Console.WriteLine("nulk-1");
@@ -217,6 +218,7 @@ namespace InternalModBot
         {
             string json = JsonConvert.SerializeObject(this);
             writer.Write(json);
+            
         }
         public void SetKeyOfPlayer(ModdedNetworkPlayer player)
         {
@@ -341,19 +343,26 @@ namespace InternalModBot
     public class PlayerCreateMessage : MessageBase
     {
         public uint Id;
-        public Color PlayerColor;
+        //public Color PlayerColor; cant use color, JsonConvert.SerializeObject(this) breaks as fuck
+        public float PlayerR, PlayerG, PlayerB;
+        
 
         public override void Deserialize(NetworkReader reader)
         {
             string json = reader.ReadString();
             PlayerCreateMessage msg = JsonConvert.DeserializeObject<PlayerCreateMessage>(json);
             Id = msg.Id;
-            PlayerColor = msg.PlayerColor;
+            PlayerR = msg.PlayerR;
+            PlayerG = msg.PlayerG;
+            PlayerB = msg.PlayerB;
         }
         public override void Serialize(NetworkWriter writer)
         {
+            Console.WriteLine("nulk 52.1");
             string json = JsonConvert.SerializeObject(this);
+            Console.WriteLine("nulk 52.15");
             writer.Write(json);
+            Console.WriteLine("nulk 52.2");
         }
 
         public void CreatePhysicalPlayer()
@@ -365,7 +374,7 @@ namespace InternalModBot
 
             Console.WriteLine("nulk0");
 
-            player.CreatePhysicalPlayer(new Vector3(0, 0, 0), PlayerColor);
+            player.CreatePhysicalPlayer(new Vector3(0, 0, 0), new Color(PlayerR, PlayerG, PlayerB));
         }
     }
 }

@@ -160,12 +160,14 @@ namespace ModLibrary
 
             if (isServer)
             {
-                Console.WriteLine("nulk-2");
 
                 PlayerCreateMessage playerCreateMessage = new PlayerCreateMessage();
-                playerCreateMessage.PlayerColor = MultiplayerUtils.GetNewPlayerColor();
-                playerCreateMessage.Id = base.netId.Value;
+                Color playerColor = MultiplayerUtils.GetNewPlayerColor();
+                playerCreateMessage.PlayerR = playerColor.r;
+                playerCreateMessage.PlayerG = playerColor.g;
+                playerCreateMessage.PlayerB = playerColor.b;
 
+                playerCreateMessage.Id = base.netId.Value;
                 NetworkServer.SendToAll((short)MsgIds.CreatePlayerMessage, playerCreateMessage);
             }
 
@@ -196,7 +198,6 @@ namespace ModLibrary
 
         public void CreatePhysicalPlayer(Vector3 SpawnPosition, Color PlayerColor)
         {
-            Console.WriteLine("nulk1");
 
             if (!hasStartedBolt)
             {
@@ -212,8 +213,7 @@ namespace ModLibrary
             {
                 PhysicalPlayer.entity.TakeControl(); // This took like 4 hours to find out that you need this, it turns out that you need this for the player to work.
             }
-
-            Console.WriteLine("nulk2");
+            
 
         }
 
