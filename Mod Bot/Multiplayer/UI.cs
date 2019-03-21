@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace InternalModBot
 {
@@ -36,14 +37,18 @@ namespace InternalModBot
             ModdedMultiplayerMenu.transform.SetParent(GameUIRoot.Instance.TitleScreenUI.transform, false);
             moddedObject _moddedObject = ModdedMultiplayerMenu.GetComponent<moddedObject>();
             Font coolFont = GameUIRoot.Instance.TitleScreenUI.DuelInviteMenu.GoButtonText.font;
-            ((UnityEngine.UI.Text)_moddedObject.objects[0]).font = coolFont;
-            ((UnityEngine.UI.Button)_moddedObject.objects[1]).transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().font = coolFont;
-            ((UnityEngine.UI.Button)_moddedObject.objects[1]).onClick.AddListener(StartServerClicked);
-            ((UnityEngine.UI.Button)_moddedObject.objects[3]).transform.GetChild(0).GetComponent<UnityEngine.UI.Text>().font = coolFont;
-            ((UnityEngine.UI.Button)_moddedObject.objects[3]).onClick.AddListener(StartClientClicked);
+            ((Text)_moddedObject.objects[0]).font = coolFont;
+            ((Button)_moddedObject.objects[1]).transform.GetChild(0).GetComponent<Text>().font = coolFont;
+            ((Button)_moddedObject.objects[1]).onClick.AddListener(StartServerClicked);
+            port = ((InputField)_moddedObject.objects[2]);
+            ((Button)_moddedObject.objects[3]).transform.GetChild(0).GetComponent<Text>().font = coolFont;
+            ((Button)_moddedObject.objects[3]).onClick.AddListener(StartClientClicked);
+            ip = ((InputField)_moddedObject.objects[4]);
 
-            ((GameObject)_moddedObject.objects[5]).GetComponent<UnityEngine.UI.Button>().onClick.AddListener(Hide);
+            ((GameObject)_moddedObject.objects[5]).GetComponent<Button>().onClick.AddListener(Hide);
         }
+        private InputField ip;
+        private InputField port;
 
         public void Hide()
         {
@@ -65,14 +70,32 @@ namespace InternalModBot
         {
             GeneralSetup();
 
-
-            Multiplayer.StartServer();
+            int _port = 8606;
+            if (port.text != "")
+            {
+                _port = Convert.ToInt32(port.text);
+            }
+            Multiplayer.StartServer(_port);
         }
         public void StartClientClicked()
         {
             GeneralSetup();
 
-            Multiplayer.StartClient();
+            if (ip == null)
+                Debug.LogError("MODBOT: IP is null");
+
+            if (ip.text == "")
+                ip.text = "localhost";
+
+            string[] _ip = ip.text.Split(':');
+
+            int _port = 8606;
+            if (_ip.Length > 1)
+            {
+                _port = Convert.ToInt32(_ip[1]);
+            }
+
+            Multiplayer.StartClient(_ip[0], _port);
            
             
         }
@@ -130,8 +153,30 @@ namespace InternalModBot
             gameData.PlayerBodyPartDamages = new List<MechBodyPartDamage>();
             return gameData;
         }
+        public static void OnSimulateController(GameObject _gameObject)
+        {
+
+
+        }
     }
-    
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     public class ModdedBoltServerStarter : BoltGlobalEventListenerSingleton<ModdedBoltServerStarter>
     {
         

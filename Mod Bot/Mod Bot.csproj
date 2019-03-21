@@ -354,6 +354,7 @@
     <Compile Include="Mod.cs" />
     <Compile Include="ModsPanelManager.cs" />
     <Compile Include="ModTools.cs" />
+    <Compile Include="Multiplayer\Messages.cs" />
     <Compile Include="Multiplayer\Multiplayer.cs" />
     <Compile Include="Multiplayer\UI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

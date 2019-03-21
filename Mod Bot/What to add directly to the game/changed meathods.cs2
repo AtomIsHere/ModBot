@@ -21,6 +21,14 @@ Firstpersonmover
 {
     ModsManager.Instance.passOnMod.OnFirstPersonMoverUpdate(gameObject);
 }
+public bool IsNotLocalPlayerOnModdedMultiplayer = false;
+public override void SimulateController()
+	{
+		if (!base.IsAlive() || base.state.IsWaitingForConstruction || this.IsNotLocalPlayerOnModdedMultiplayer)
+		{
+			return;
+		}
+	}
 
 LevelEditorUI
 Show()

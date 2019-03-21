@@ -6,73 +6,53 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.Networking.NetworkSystem;
 using Newtonsoft.Json;
-
+using InternalModBot;
 
 namespace ModLibrary
 {
     public static class Multiplayer
     {
         private static List<SyncAcrossClients> ObjectsToSyncAcrossClients = new List<SyncAcrossClients>();
-        public static ModNetworkManager networkManager;
-        public static NetworkClient client;
+        public static ModNetworkManager NetworkManager;
+        public static NetworkClient Client;
 
-        internal static NetworkPlayer localPlayer;
+        public static ModdedNetworkPlayer LocalPlayer;
 
-        public static List<NetworkPlayer> Players = new List<NetworkPlayer>();
+        public static List<ModdedNetworkPlayer> Players { get; internal set; } = new List<ModdedNetworkPlayer>();
 
         public static void StartServer(int port = 8606)
         {
             GameObject networkHolder = new GameObject();
-            networkManager = networkHolder.AddComponent<ModNetworkManager>();
-            networkManager.networkPort = port;
+            NetworkManager = networkHolder.AddComponent<ModNetworkManager>();
+            NetworkManager.networkPort = port;
             GeneralSetup();
-            client = networkManager.StartHost();
-            SetupHandelers();
+            Client = NetworkManager.StartHost();
+            NetworkMessageManager.SetupHandelers();
         }
-
         public static void StartClient(string ip = "localhost", int port = 8606)
         {
             GameObject networkHolder = new GameObject();
-            networkManager = networkHolder.AddComponent<ModNetworkManager>();
+            NetworkManager = networkHolder.AddComponent<ModNetworkManager>();
             GeneralSetup();
 
 
-            client = networkManager.StartClient();
+            Client = NetworkManager.StartClient();
             
 
 
-            client.Connect(ip,port);
+            Client.Connect(ip,port);
 
-            SetupHandelers();
+            NetworkMessageManager.SetupHandelers();
         }
 
-        static void GeneralSetup()
+        public static void SendMsg()
         {
-            GameObject player = new GameObject();
-            player.AddComponent<NetworkPlayer>();
-            player.AddComponent<NetworkIdentity>();
-            ClientScene.RegisterPrefab(player, NetworkHash128.Parse(player.name));
-            networkManager.playerPrefab = player;
 
-            networkManager.connectionConfig.NetworkDropThreshold = 45;
-            networkManager.connectionConfig.OverflowDropThreshold = 45;
-            networkManager.connectionConfig.AckDelay = 200;
-            networkManager.connectionConfig.AcksType = ConnectionAcksType.Acks128;
-            networkManager.connectionConfig.MaxSentMessageQueueSize = 300;
+
+
+
+
         }
-        static void SetupHandelers()
-        {
-            client.RegisterHandler((short)MsgIds.test, TestMsg);
-            NetworkServer.RegisterHandler((short)MsgIds.test, TestMsg);
-
-            client.RegisterHandler((short)MsgIds.UpdatePlayerTransform, HandleMovePlayerClient);
-            NetworkServer.RegisterHandler((short)MsgIds.UpdatePlayerTransform, HandleMovePlayerServer);
-
-
-            client.RegisterHandler((short)MsgIds.KeyPressEvent, HandleKeyPressClient);
-            NetworkServer.RegisterHandler((short)MsgIds.KeyPressEvent, HandleKeyPressServer);
-        }
-
         public static void StartTrackingObject(GameObject objectToTrack)
         {
             SyncAcrossClients sync = objectToTrack.AddComponent<SyncAcrossClients>();
@@ -88,63 +68,24 @@ namespace ModLibrary
             Component.Destroy(sync);
         }
 
-        
 
-        static void TestMsg(NetworkMessage msg)
+
+
+
+        static void GeneralSetup()
         {
-            StringMessage myMsg = msg.ReadMessage<StringMessage>();
-            debug.Log(myMsg.value);
+            GameObject player = new GameObject();
+            player.AddComponent<ModdedNetworkPlayer>();
+            player.AddComponent<NetworkIdentity>();
+            ClientScene.RegisterPrefab(player, NetworkHash128.Parse(player.name));
+            NetworkManager.playerPrefab = player;
 
+            NetworkManager.connectionConfig.NetworkDropThreshold = 45;
+            NetworkManager.connectionConfig.OverflowDropThreshold = 45;
+            NetworkManager.connectionConfig.AckDelay = 200;
+            NetworkManager.connectionConfig.AcksType = ConnectionAcksType.Acks128;
+            NetworkManager.connectionConfig.MaxSentMessageQueueSize = 300;
         }
-        static void HandleMovePlayerServer(NetworkMessage msg)
-        {
-
-            PlayerMoveMessage myMsg = msg.ReadMessage<PlayerMoveMessage>();
-            NetworkServer.SendUnreliableToAll((short)MsgIds.UpdatePlayerTransform, myMsg);
-            
-
-        }
-        static void HandleMovePlayerClient(NetworkMessage msg)
-        {
-            PlayerMoveMessage myMsg = msg.ReadMessage<PlayerMoveMessage>();
-
-            NetworkPlayer player = NetworkPlayer.getPlayerWithID(myMsg.Id);
-
-            if (player == null)
-                return;
-            if (!player.isLocalPlayer)
-            {
-
-                myMsg.SetTransformOfPlayer();
-            }
-        }
-        static void HandleKeyPressServer(NetworkMessage msg)
-        {
-            KeyPressEventMessage myMsg = msg.ReadMessage<KeyPressEventMessage>();
-            NetworkServer.SendToAll((short)MsgIds.KeyPressEvent, myMsg);
-        }
-        static void HandleKeyPressClient(NetworkMessage msg)
-        {
-            debug.Log("got keypress...");
-            KeyPressEventMessage myMsg = msg.ReadMessage<KeyPressEventMessage>();
-            NetworkPlayer player = NetworkPlayer.getPlayerWithID(myMsg.Id);
-            if (player == null || player.isLocalPlayer)
-                return;
-            debug.Log("prossesing keypress...");
-            myMsg.SetKeyOfPlayer();
-        }
-
-        static void StandardMsg(NetworkMessage msg)
-        {
-
-        }
-
-        public static void SendMsg()
-        {
-
-        }
-        
-
     }
 
     
@@ -158,31 +99,50 @@ namespace ModLibrary
     }
 
 
-    internal class SyncAcrossClients : MonoBehaviour
+    public class SyncAcrossClients : MonoBehaviour
     {
 
     }
-    internal enum MsgIds : short
-    {
-        test = 252,
-        UpdatePlayerTransform = 253,
-        KeyPressEvent = 254
 
-    }
-    public class NetworkPlayer : NetworkBehaviour
+    public class ModdedNetworkPlayer : NetworkBehaviour
     {
         public FirstPersonMover PhysicalPlayer;
         static bool hasStartedBolt = false;
 
+        bool isFakePlayer = true;
+
         public static float sendRate = 0.1f;
+        public static List<KeyCode> KeysToSync = new List<KeyCode>()
+        {
+            KeyCode.Mouse0,
+            KeyCode.Mouse1,
+            KeyCode.W,
+            KeyCode.A,
+            KeyCode.S,
+            KeyCode.D,
+            KeyCode.F,
+            KeyCode.LeftShift,
+            KeyCode.E,
+            KeyCode.Space,
+            KeyCode.Alpha1,
+            KeyCode.Alpha2,
+            KeyCode.Alpha3
+        };
         float timer;
         public void Start()
         {
+            if (isFakePlayer)
+            {
+                Multiplayer.Players.Remove(this);
+                return;
+            }
+                
+
             if (!isLocalPlayer)
             {
                 if (!hasStartedBolt)
                 {
-                    Delayed.TriggerAfterDelay(new fakeAction(typeof(NetworkPlayer).GetMethod("Start"), this), 1);
+                    Delayed.TriggerAfterDelay(new fakeAction(typeof(ModdedNetworkPlayer).GetMethod("Start"), this), 1);
                     
                     return;
                 }
@@ -190,6 +150,8 @@ namespace ModLibrary
                 {
                     Transform spawnPoint = new GameObject().transform;
                     PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, false, Color.red);
+                    PhysicalPlayer.entity.TakeControl(); // this took like 4 hours to find out that you need this, it turns out that you need this for the player to work.
+
                     PlayerInputController playerControll = PhysicalPlayer.GetComponent<PlayerInputController>();
                     if (playerControll != null)
                         Destroy(playerControll);
@@ -197,17 +159,15 @@ namespace ModLibrary
                     AISwordsmanController aISwordsmanController = PhysicalPlayer.GetComponent<AISwordsmanController>();
                     if (aISwordsmanController != null)
                         Destroy(aISwordsmanController);
-
                 }
             }
             else
             {
-                Multiplayer.localPlayer = this;
+                Multiplayer.LocalPlayer = this;
                 BoltGlobalEventListenerSingleton<InternalModBot.ModdedBoltServerStarter>.Instance.StartServerThenCall(delegate   // Not the actual server, clone drone needs bolt to survive.
                 {
                     Transform spawnPoint = new GameObject().transform;
                     PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, true, Color.blue);
-                    
                     hasStartedBolt = true;
                 });
             }
@@ -223,46 +183,52 @@ namespace ModLibrary
         }
         public override void OnStartClient()
         {
-            
-            
+
+            isFakePlayer = false;
 
         }
         public void Update()
         {
+            if (isFakePlayer)
+                return;
+            
             if (!isLocalPlayer)
                 return;
-
-            /*if (!isServer)
-            {
-                if (Input.GetKeyDown(KeyCode.G))
-                {
-                    Multiplayer.client.Send((short)MsgIds.test, new StringMessage("test"));
-                }
-            } else
-            {
-                if (Input.GetKeyDown(KeyCode.G))
-                {
-                    for (int i = 1; i < NetworkServer.connections.Count; i++)
+            
+            if (!Singleton<InputManager>.Instance.IsCursorEnabled()) {
+                if (PhysicalPlayer != null) {
+                    float x = (float)Accessor.GetPrivateField(typeof(FirstPersonMover), "_horizontalCursorMovement", PhysicalPlayer);
+                    float y = (float)Accessor.GetPrivateField(typeof(FirstPersonMover), "_verticalCursorMovement", PhysicalPlayer);
+                    if (x != 0 || y != 0) // to not send any unnessesary packages
                     {
-                        NetworkServer.SendToClient(i, (short)MsgIds.test, new StringMessage("test"));
+                        MouseOffsetMessage msg = new MouseOffsetMessage();
+                        msg.MouseX = x;
+                        msg.MouseY = y;
+                        msg.Id = netId.Value;
+                        base.connectionToServer.Send((short)MsgIds.MouseOffsetEvent, msg);
                     }
-                    
+
                 }
-            }*/
-            if (Input.GetKeyDown(KeyCode.Mouse0))
-            {
-                KeyPressEventMessage msg = new KeyPressEventMessage();
-                msg.Id = netId.Value;
-                msg.Key = KeyCode.Mouse0;
-                msg.Down = true;
-                base.connectionToServer.Send((short)MsgIds.KeyPressEvent, msg);
-            } else if(Input.GetKeyUp(KeyCode.Mouse0))
-            {
-                KeyPressEventMessage msg = new KeyPressEventMessage();
-                msg.Id = netId.Value;
-                msg.Key = KeyCode.Mouse0;
-                msg.Down = false;
-                base.connectionToServer.Send((short)MsgIds.KeyPressEvent, msg);
+
+                for (int i = 0; i < KeysToSync.Count; i++)
+                {
+                    if (Input.GetKeyDown(KeysToSync[i]))
+                    {
+                        KeyPressEventMessage msg = new KeyPressEventMessage();
+                        msg.Id = netId.Value;
+                        msg.Key = KeysToSync[i];
+                        msg.Down = true;
+                        base.connectionToServer.Send((short)MsgIds.KeyPressEvent, msg);
+                    }
+                    else if (Input.GetKeyUp(KeysToSync[i]))
+                    {
+                        KeyPressEventMessage msg = new KeyPressEventMessage();
+                        msg.Id = netId.Value;
+                        msg.Key = KeysToSync[i];
+                        msg.Down = false;
+                        base.connectionToServer.Send((short)MsgIds.KeyPressEvent, msg);
+                    }
+                }
             }
 
             if (timer > sendRate)
@@ -279,7 +245,7 @@ namespace ModLibrary
             timer += Time.deltaTime;
         }
 
-        public static NetworkPlayer getPlayerWithID(uint id)
+        public static ModdedNetworkPlayer getPlayerWithID(uint id)
         {
             for (int i = 0; i < Multiplayer.Players.Count; i++)
             {
@@ -296,6 +262,9 @@ namespace ModLibrary
         }
         void OnDestroy()
         {
+            if (isFakePlayer)
+                return;
+
             Multiplayer.Players.Remove(this);
             Destroy(PhysicalPlayer);
             if (isLocalPlayer)
@@ -305,99 +274,5 @@ namespace ModLibrary
         }
     }
 
-    public class TransformMessage : MessageBase
-    {
-        public Vector3 Position;
-        public Quaternion Rotation;
-
-        public override void Deserialize(NetworkReader reader)
-        {
-            string json = reader.ReadString();
-            TransformMessage msg = JsonConvert.DeserializeObject<TransformMessage>(json);
-            Position = msg.Position;
-            Rotation = msg.Rotation;
-        }
-        public override void Serialize(NetworkWriter writer)
-        {
-            string json = JsonConvert.SerializeObject(this);
-            writer.Write(json);
-        }
-
-        public void SetTransformOfGameObjectObject(GameObject gameObject)
-        {
-            gameObject.transform.position = Position;
-            gameObject.transform.rotation = Rotation;
-        }
-    }
-    public class PlayerMoveMessage : MessageBase
-    {
-        public Vector3 Position;
-        public Quaternion Rotation;
-        public uint Id;
-        public override void Deserialize(NetworkReader reader)
-        {
-            string json = reader.ReadString();
-            PlayerMoveMessage msg = JsonConvert.DeserializeObject<PlayerMoveMessage>(json);
-            Position = msg.Position;
-            Rotation = msg.Rotation;
-            Id = msg.Id;
-        }
-        public override void Serialize(NetworkWriter writer)
-        {
-            string json = JsonConvert.SerializeObject(this);
-            writer.Write(json);
-        }
-
-        public void SetTransformOfPlayer()
-        {
-            NetworkPlayer player = NetworkPlayer.getPlayerWithID(Id);
-            if (player == null || player.PhysicalPlayer == null)
-                return;
-            player.PhysicalPlayer.transform.position = Position;
-            player.PhysicalPlayer.transform.rotation = Rotation;
-        }
-    }
-
-    public class KeyPressEventMessage : MessageBase
-    {
-        public KeyCode Key;
-        public bool Down;
-        public uint Id;
-        public override void Deserialize(NetworkReader reader)
-        {
-            string json = reader.ReadString();
-            KeyPressEventMessage msg = JsonConvert.DeserializeObject<KeyPressEventMessage>(json);
-            Key = msg.Key;
-            Down = msg.Down;
-            Id = msg.Id;
-        }
-        public override void Serialize(NetworkWriter writer)
-        {
-            string json = JsonConvert.SerializeObject(this);
-            writer.Write(json);
-        }
-
-        public void SetKeyOfPlayer()
-        {
-            NetworkPlayer player = NetworkPlayer.getPlayerWithID(Id);
-            if (player == null || player.PhysicalPlayer == null)
-                return;
-            if (Key == KeyCode.Mouse0)
-            {
-                debug.Log("got key mouse0 " + Down);
-                Component[] components = player.PhysicalPlayer.gameObject.GetComponents(typeof(Component));
-                for (int i = 0; i < components.Length; i++)
-                {
-                    debug.Log(components[i].ToString());
-                    debug.Log("\n\n\n");
-                }
-                if (Down)
-                {
-                    player.PhysicalPlayer.SetAttackKeyDown(true);
-                }
-                player.PhysicalPlayer.SetAttackKeyHeld(Down);
-                
-            }
-        }
-    }
+    
 }
