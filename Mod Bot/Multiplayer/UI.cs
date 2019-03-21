@@ -157,6 +157,29 @@ namespace InternalModBot
 
 
         }
+
+        public static Color GetColorFromRGB(float r, float g, float b)
+        {
+            return new Color(r / 255f, g / 255f, b / 255f);
+        }
+
+        public static List<Color> GetHumanFactSetColors()
+        {
+            List<Color> colors = new List<Color>();
+            HumanFavouriteColor[] humanColors = HumanFactsManager.Instance.FavouriteColors;
+
+            for (int i = 0; i < humanColors.Length; i++)
+            {
+                colors.Add(humanColors[i].ColorValue);
+            }
+
+            return colors;
+        }
+
+        public static Color GetNewPlayerColor()
+        {
+            return Multiplayer.PossiblePlayerColors[UnityEngine.Random.Range(0, Multiplayer.PossiblePlayerColors.Count - 1)];
+        }
     }
 
    

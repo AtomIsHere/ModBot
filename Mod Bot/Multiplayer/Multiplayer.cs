@@ -12,13 +12,23 @@ namespace ModLibrary
 {
     public static class Multiplayer
     {
-        private static List<SyncAcrossClients> ObjectsToSyncAcrossClients = new List<SyncAcrossClients>();
         public static ModNetworkManager NetworkManager;
         public static NetworkClient Client;
 
         public static ModdedNetworkPlayer LocalPlayer;
 
         public static List<ModdedNetworkPlayer> Players { get; internal set; } = new List<ModdedNetworkPlayer>();
+
+        public static List<Color> PossiblePlayerColors = new List<Color>(MultiplayerUtils.GetHumanFactSetColors())
+        {
+            MultiplayerUtils.GetColorFromRGB(255, 050, 050), // Red
+            MultiplayerUtils.GetColorFromRGB(109, 054, 000), // Brown
+            MultiplayerUtils.GetColorFromRGB(234, 146, 014), // Orange
+            MultiplayerUtils.GetColorFromRGB(170, 170, 170), // Gray/Silver
+            MultiplayerUtils.GetColorFromRGB(218, 165, 032), // Gold
+        };
+
+        private static List<SyncAcrossClients> ObjectsToSyncAcrossClients = new List<SyncAcrossClients>();
 
         public static void StartServer(int port = 8606)
         {
@@ -82,6 +92,7 @@ namespace ModLibrary
             NetworkManager.connectionConfig.AcksType = ConnectionAcksType.Acks128;
             NetworkManager.connectionConfig.MaxSentMessageQueueSize = 300;
         }
+
     }
 
     
@@ -126,21 +137,40 @@ namespace ModLibrary
         float timer;
         public void Start()
         {
-            if (isFakePlayer)
+            if (isFakePlayer) // If player is prefab
             {
                 Multiplayer.Players.Remove(this);
                 return;
             }
-                
 
-            if (!isLocalPlayer)
+            if (isLocalPlayer)
             {
-                if (!hasStartedBolt)
+                Multiplayer.LocalPlayer = this;
+                BoltGlobalEventListenerSingleton<InternalModBot.ModdedBoltServerStarter>.Instance.StartServerThenCall(delegate   // Not the actual server, clone drone needs bolt to survive.
                 {
-                    Delayed.TriggerAfterDelay(new fakeAction(typeof(ModdedNetworkPlayer).GetMethod("Start"), this), 1);
-                    
-                    return;
-                }
+                    hasStartedBolt = true;
+                });
+            }
+            else if (!hasStartedBolt)
+            {
+                Delayed.TriggerAfterDelay(new fakeAction(typeof(ModdedNetworkPlayer).GetMethod("Start"), this), 1);
+
+                return;
+            }
+
+            if (isServer)
+            {
+                Console.WriteLine("nulk-2");
+
+                PlayerCreateMessage playerCreateMessage = new PlayerCreateMessage();
+                playerCreateMessage.PlayerColor = MultiplayerUtils.GetNewPlayerColor();
+                playerCreateMessage.Id = base.netId.Value;
+
+                NetworkServer.SendToAll((short)MsgIds.CreatePlayerMessage, playerCreateMessage);
+            }
+
+            /*if (!isLocalPlayer)
+            {
                 else
                 {
                     Transform spawnPoint = new GameObject().transform;
@@ -159,20 +189,34 @@ namespace ModLibrary
                         Destroy(aISwordsmanController);
                     }
                 }
-            }
-            else
-            {
-                Multiplayer.LocalPlayer = this;
-                BoltGlobalEventListenerSingleton<InternalModBot.ModdedBoltServerStarter>.Instance.StartServerThenCall(delegate   // Not the actual server, clone drone needs bolt to survive.
-                {
-                    Transform spawnPoint = new GameObject().transform;
-                    PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, true, Color.blue);
-                    hasStartedBolt = true;
-                });
-            }
+            }*/
             
             
         }
+
+        public void CreatePhysicalPlayer(Vector3 SpawnPosition, Color PlayerColor)
+        {
+            Console.WriteLine("nulk1");
+
+            if (!hasStartedBolt)
+            {
+                Delayed.TriggerAfterDelay(new fakeAction(typeof(ModdedNetworkPlayer).GetMethod("CreatePhysicalPlayer"), this, new object[] { SpawnPosition, PlayerColor }), 1);
+                return;
+            }
+
+            Transform spawnPoint = new GameObject().transform;
+            spawnPoint.position = SpawnPosition;
+            PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, isLocalPlayer, PlayerColor);
+
+            if (!isLocalPlayer)
+            {
+                PhysicalPlayer.entity.TakeControl(); // This took like 4 hours to find out that you need this, it turns out that you need this for the player to work.
+            }
+
+            Console.WriteLine("nulk2");
+
+        }
+
         public override void OnStartServer()
         {
             
@@ -182,8 +226,12 @@ namespace ModLibrary
         }
         public override void OnStartClient()
         {
-
             isFakePlayer = false;
+
+            if (!isServer)
+            {
+
+            }
 
         }
         public void Update()

@@ -16,7 +16,8 @@ namespace InternalModBot
         test = 252,
         UpdatePlayerTransform = 253,
         KeyPressEvent = 254,
-        MouseOffsetEvent = 255
+        MouseOffsetEvent = 255,
+        CreatePlayerMessage = 256
 
     }
 
@@ -37,6 +38,10 @@ namespace InternalModBot
 
             Multiplayer.Client.RegisterHandler((short)MsgIds.MouseOffsetEvent, HandleMouseOffsetMessageClient);
             NetworkServer.RegisterHandler((short)MsgIds.MouseOffsetEvent, HandleMouseOffsetMessageServer);
+
+
+            Multiplayer.Client.RegisterHandler((short)MsgIds.CreatePlayerMessage, PlayerCreateMessageClient);
+            NetworkServer.RegisterHandler((short)MsgIds.CreatePlayerMessage, PlayerCreateMessageServer);
         }
 
         
@@ -98,6 +103,19 @@ namespace InternalModBot
             myMsg.AddRotationToPlayer(player);
         }
 
+        static void PlayerCreateMessageServer(NetworkMessage netMsg)
+        {
+            debug.Log("Client attempted to create player!", Color.red);
+        }
+
+        static void PlayerCreateMessageClient(NetworkMessage netMsg)
+        {
+            PlayerCreateMessage myMsg = netMsg.ReadMessage<PlayerCreateMessage>();
+
+            Console.WriteLine("nulk-1");
+
+            myMsg.CreatePhysicalPlayer();
+        }
 
         static void StandardMsg(NetworkMessage msg)
         {
@@ -131,6 +149,7 @@ namespace InternalModBot
             gameObject.transform.rotation = Rotation;
         }
     }
+
     public class PlayerMoveMessage : MessageBase
     {
         public Vector3 Position;
@@ -316,6 +335,37 @@ namespace InternalModBot
                 return;
             player.PhysicalPlayer.SetHorizontalCursorMovement(MouseX);
             player.PhysicalPlayer.SetVerticalCursorMovement(MouseY);
+        }
+    }
+
+    public class PlayerCreateMessage : MessageBase
+    {
+        public uint Id;
+        public Color PlayerColor;
+
+        public override void Deserialize(NetworkReader reader)
+        {
+            string json = reader.ReadString();
+            PlayerCreateMessage msg = JsonConvert.DeserializeObject<PlayerCreateMessage>(json);
+            Id = msg.Id;
+            PlayerColor = msg.PlayerColor;
+        }
+        public override void Serialize(NetworkWriter writer)
+        {
+            string json = JsonConvert.SerializeObject(this);
+            writer.Write(json);
+        }
+
+        public void CreatePhysicalPlayer()
+        {
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(Id);
+
+            if (player == null)
+                return;
+
+            Console.WriteLine("nulk0");
+
+            player.CreatePhysicalPlayer(new Vector3(0, 0, 0), PlayerColor);
         }
     }
 }
