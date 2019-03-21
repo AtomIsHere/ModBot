@@ -47,11 +47,7 @@ namespace ModLibrary
 
         public static void SendMsg()
         {
-
-
-
-
-
+            throw new NotImplementedException();
         }
         public static void StartTrackingObject(GameObject objectToTrack)
         {
@@ -93,7 +89,6 @@ namespace ModLibrary
     {
         public override void OnClientConnect(NetworkConnection conn)
         {
-
             base.OnClientConnect(conn);
         }
     }
@@ -154,11 +149,15 @@ namespace ModLibrary
 
                     PlayerInputController playerControll = PhysicalPlayer.GetComponent<PlayerInputController>();
                     if (playerControll != null)
+                    {
                         Destroy(playerControll);
+                    }
 
                     AISwordsmanController aISwordsmanController = PhysicalPlayer.GetComponent<AISwordsmanController>();
                     if (aISwordsmanController != null)
+                    {
                         Destroy(aISwordsmanController);
+                    }
                 }
             }
             else
@@ -195,8 +194,10 @@ namespace ModLibrary
             if (!isLocalPlayer)
                 return;
             
-            if (!Singleton<InputManager>.Instance.IsCursorEnabled()) {
-                if (PhysicalPlayer != null) {
+            if (!Singleton<InputManager>.Instance.IsCursorEnabled())
+            {
+                if (PhysicalPlayer != null)
+                {
                     float x = (float)Accessor.GetPrivateField(typeof(FirstPersonMover), "_horizontalCursorMovement", PhysicalPlayer);
                     float y = (float)Accessor.GetPrivateField(typeof(FirstPersonMover), "_verticalCursorMovement", PhysicalPlayer);
                     if (x != 0 || y != 0) // to not send any unnessesary packages
@@ -245,7 +246,7 @@ namespace ModLibrary
             timer += Time.deltaTime;
         }
 
-        public static ModdedNetworkPlayer getPlayerWithID(uint id)
+        public static ModdedNetworkPlayer GetPlayerWithID(uint id)
         {
             for (int i = 0; i < Multiplayer.Players.Count; i++)
             {

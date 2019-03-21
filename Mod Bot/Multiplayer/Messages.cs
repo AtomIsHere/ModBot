@@ -47,19 +47,18 @@ namespace InternalModBot
             debug.Log(myMsg.value);
 
         }
+
         static void HandleMovePlayerServer(NetworkMessage msg)
         {
-
             PlayerMoveMessage myMsg = msg.ReadMessage<PlayerMoveMessage>();
             NetworkServer.SendUnreliableToAll((short)MsgIds.UpdatePlayerTransform, myMsg);
-
-
         }
+
         static void HandleMovePlayerClient(NetworkMessage msg)
         {
             PlayerMoveMessage myMsg = msg.ReadMessage<PlayerMoveMessage>();
 
-            ModdedNetworkPlayer player = ModdedNetworkPlayer.getPlayerWithID(myMsg.Id);
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(myMsg.Id);
 
             if (player == null)
                 return;
@@ -69,6 +68,7 @@ namespace InternalModBot
                 myMsg.SetTransformOfPlayer();
             }
         }
+
         static void HandleKeyPressServer(NetworkMessage msg)
         {
             KeyPressEventMessage myMsg = msg.ReadMessage<KeyPressEventMessage>();
@@ -77,7 +77,7 @@ namespace InternalModBot
         static void HandleKeyPressClient(NetworkMessage msg)
         {
             KeyPressEventMessage myMsg = msg.ReadMessage<KeyPressEventMessage>();
-            ModdedNetworkPlayer player = ModdedNetworkPlayer.getPlayerWithID(myMsg.Id);
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(myMsg.Id);
             if (player == null || player.isLocalPlayer)
                 return;
             myMsg.SetKeyOfPlayer(player);
@@ -92,7 +92,7 @@ namespace InternalModBot
         static void HandleMouseOffsetMessageClient(NetworkMessage netMsg)
         {
             MouseOffsetMessage myMsg = netMsg.ReadMessage<MouseOffsetMessage>();
-            ModdedNetworkPlayer player = ModdedNetworkPlayer.getPlayerWithID(myMsg.Id);
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(myMsg.Id);
             if (player == null || player.isLocalPlayer)
                 return;
             myMsg.AddRotationToPlayer(player);
@@ -152,7 +152,7 @@ namespace InternalModBot
 
         public void SetTransformOfPlayer()
         {
-            ModdedNetworkPlayer player = ModdedNetworkPlayer.getPlayerWithID(Id);
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(Id);
             if (player == null || player.PhysicalPlayer == null)
                 return;
             player.PhysicalPlayer.transform.position = Position;
@@ -275,8 +275,7 @@ namespace InternalModBot
         }
         public void KeyEventSpace()
         {
-            
-                player.PhysicalPlayer.SetJumpKeyDown(Down);
+            player.PhysicalPlayer.SetJumpKeyDown(Down);
         }
         public void KeyEvent1()
         {

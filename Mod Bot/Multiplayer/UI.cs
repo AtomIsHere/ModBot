@@ -47,6 +47,7 @@ namespace InternalModBot
 
             ((GameObject)_moddedObject.objects[5]).GetComponent<Button>().onClick.AddListener(Hide);
         }
+
         private InputField ip;
         private InputField port;
 
@@ -96,16 +97,16 @@ namespace InternalModBot
             }
 
             Multiplayer.StartClient(_ip[0], _port);
-           
-            
         }
+
+
         void GeneralSetup()
         {
             Accessor.SetPrivateField(typeof(GameFlowManager), "_gameMode", GameFlowManager.Instance, GameMode.SingleLevelPlaytest);
             
+            
 
-
-            GameData data = MultiplayerUtils.createNewGameData();
+            GameData data = MultiplayerUtils.CreateNewGameData();
             data.CurentLevelID = "modded-test1";
             Accessor.SetPrivateField(typeof(GameDataManager), "_singleLevelPlaytestData", GameDataManager.Instance, data);
 
@@ -128,29 +129,27 @@ namespace InternalModBot
             GameFlowManager.Instance.HideTitleScreen(true);
         }
 
-
-
-        
     }
-
-
     
-
     public static class MultiplayerUtils
     {
-        public static GameData createNewGameData()
+        public static GameData CreateNewGameData()
         {
-            GameData gameData = new GameData();
-            gameData.NumClones = Singleton<CloneManager>.Instance.GetNumStartingClones();
-            gameData.NumLevelsWon = 0;
-            gameData.AvailableSkillPoints = 0;
-            gameData.PlayerUpgrades = Singleton<UpgradeManager>.Instance.CreateDefaultPlayerUpgrades();
-            gameData.HumanFacts = Singleton<HumanFactsManager>.Instance.GetRandomFactSet();
-            gameData.LevelIDsBeatenThisPlaythrough = new List<string>();
-            gameData.LevelPrefabsBeatenThisPlaythrough = new List<string>();
+            GameData gameData = new GameData
+            {
+                NumClones = Singleton<CloneManager>.Instance.GetNumStartingClones(),
+                NumLevelsWon = 0,
+                AvailableSkillPoints = 0,
+                PlayerUpgrades = Singleton<UpgradeManager>.Instance.CreateDefaultPlayerUpgrades(),
+                HumanFacts = Singleton<HumanFactsManager>.Instance.GetRandomFactSet(),
+                LevelIDsBeatenThisPlaythrough = new List<string>(),
+                LevelPrefabsBeatenThisPlaythrough = new List<string>(),
+                PlayerArmorParts = new List<MechBodyPartType>(),
+                PlayerBodyPartDamages = new List<MechBodyPartDamage>()
+            };
+
             gameData.SetDirty(true);
-            gameData.PlayerArmorParts = new List<MechBodyPartType>();
-            gameData.PlayerBodyPartDamages = new List<MechBodyPartDamage>();
+
             return gameData;
         }
         public static void OnSimulateController(GameObject _gameObject)
@@ -179,8 +178,6 @@ namespace InternalModBot
 
     public class ModdedBoltServerStarter : BoltGlobalEventListenerSingleton<ModdedBoltServerStarter>
     {
-        
-
         public void StartServerThenCall(CallBackDeligate callback)
         {
             if (this.IsStartingGame())
