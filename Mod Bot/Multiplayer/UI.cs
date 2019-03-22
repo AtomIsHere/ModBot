@@ -1,5 +1,6 @@
 ﻿using ModLibrary;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -103,12 +104,18 @@ namespace InternalModBot
         void GeneralSetup()
         {
             Accessor.SetPrivateField(typeof(GameFlowManager), "_gameMode", GameFlowManager.Instance, GameMode.SingleLevelPlaytest);
-            
-            
+
+
 
             GameData data = MultiplayerUtils.CreateNewGameData();
             data.CurentLevelID = "modded-test1";
             Accessor.SetPrivateField(typeof(GameDataManager), "_singleLevelPlaytestData", GameDataManager.Instance, data);
+
+            string moddedLevelsPath = Application.persistentDataPath + "/ModdedLevels/";
+            string moddedLevelJsonPath = Application.persistentDataPath + "/ModdedLevels/ModdedMultiplayerTestLevel.json";
+            const string moddedLevelDownloadLink = "https://cdn.discordapp.com/attachments/526159007442927648/558703015255867410/ModdedMultiplayerTestLevel.json";
+
+            InternalUtils.SaveFileToDirectory(moddedLevelDownloadLink, moddedLevelJsonPath);
 
             List<LevelDescription> levelList = new List<LevelDescription>();
             LevelDescription level = new LevelDescription
@@ -130,7 +137,7 @@ namespace InternalModBot
         }
 
     }
-    
+
     public static class MultiplayerUtils
     {
         public static GameData CreateNewGameData()
@@ -184,7 +191,7 @@ namespace InternalModBot
         }
     }
 
-   
+
 
 
 
@@ -213,7 +220,7 @@ namespace InternalModBot
             BoltRuntimeSettings.instance.overrideTimeScale = false;
             BoltLauncher.StartSinglePlayer();
         }
-        
+
         public override void BoltStartDone()
         {
             if (this._startedCallback != null)
@@ -222,7 +229,7 @@ namespace InternalModBot
                 this._startedCallback = null;
             }
         }
-        
+
         public bool IsStartingGame()
         {
             return this._startedCallback != null;
