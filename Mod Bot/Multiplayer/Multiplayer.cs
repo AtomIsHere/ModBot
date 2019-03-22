@@ -12,7 +12,6 @@ namespace ModLibrary
 {
     public static class Multiplayer
     {
-        public static ModNetworkManager NetworkManager;
         public static NetworkClient Client;
 
         public static ModdedNetworkPlayer LocalPlayer;
@@ -32,21 +31,27 @@ namespace ModLibrary
 
         public static void StartServer(int port = 8606)
         {
+            NetworkServer.Reset();          //stop some crashes
+            NetworkManager.Shutdown();      //stop some crashes
+
             GameObject networkHolder = new GameObject();
-            NetworkManager = networkHolder.AddComponent<ModNetworkManager>();
-            NetworkManager.networkPort = port;
+            ModNetworkManager networkManager = networkHolder.AddComponent<ModNetworkManager>();
+            networkManager.networkPort = port;
             GeneralSetup();
-            Client = NetworkManager.StartHost();
+            Client = networkManager.StartHost();
             NetworkMessageManager.SetupHandelers();
         }
         public static void StartClient(string ip = "localhost", int port = 8606)
         {
+            NetworkManager.Shutdown();
+            Network.Disconnect();
+
             GameObject networkHolder = new GameObject();
-            NetworkManager = networkHolder.AddComponent<ModNetworkManager>();
+            ModNetworkManager networkManager = networkHolder.AddComponent<ModNetworkManager>();
             GeneralSetup();
 
 
-            Client = NetworkManager.StartClient();
+            Client = networkManager.StartClient();
             
 
 
@@ -84,13 +89,13 @@ namespace ModLibrary
             player.AddComponent<ModdedNetworkPlayer>();
             player.AddComponent<NetworkIdentity>();
             ClientScene.RegisterPrefab(player, NetworkHash128.Parse(player.name));
-            NetworkManager.playerPrefab = player;
+            NetworkManager.singleton.playerPrefab = player;
 
-            NetworkManager.connectionConfig.NetworkDropThreshold = 45;
-            NetworkManager.connectionConfig.OverflowDropThreshold = 45;
-            NetworkManager.connectionConfig.AckDelay = 200;
-            NetworkManager.connectionConfig.AcksType = ConnectionAcksType.Acks128;
-            NetworkManager.connectionConfig.MaxSentMessageQueueSize = 300;
+            NetworkManager.singleton.connectionConfig.NetworkDropThreshold = 45;
+            NetworkManager.singleton.connectionConfig.OverflowDropThreshold = 45;
+            NetworkManager.singleton.connectionConfig.AckDelay = 200;
+            NetworkManager.singleton.connectionConfig.AcksType = ConnectionAcksType.Acks128;
+            NetworkManager.singleton.connectionConfig.MaxSentMessageQueueSize = 300;
         }
 
     }
@@ -113,6 +118,7 @@ namespace ModLibrary
     public class ModdedNetworkPlayer : NetworkBehaviour
     {
         public FirstPersonMover PhysicalPlayer;
+        public Color PhysicalColor;
         static bool hasStartedBolt = false;
 
         bool isFakePlayer = true;
@@ -146,7 +152,14 @@ namespace ModLibrary
             if (isLocalPlayer)
             {
                 Multiplayer.LocalPlayer = this;
-                BoltGlobalEventListenerSingleton<InternalModBot.ModdedBoltServerStarter>.Instance.StartServerThenCall(delegate   // Not the actual server, clone drone needs bolt to survive.
+                if (!isServer)
+                {
+                    PlayerCreateMessage playerCreateMessage = new PlayerCreateMessage();
+                    playerCreateMessage.MissingPlayers = GetAllPlayersWithoutAPhysicalPlayer();
+                    playerCreateMessage.Id = netId.Value;
+                    connectionToServer.Send((short)MsgIds.CreatePlayerMessage, playerCreateMessage);
+                }
+                BoltGlobalEventListenerSingleton<ModdedBoltServerStarter>.Instance.StartServerThenCall(delegate   // Not the actual server, clone drone needs bolt to survive.
                 {
                     hasStartedBolt = true;
                 });
@@ -166,7 +179,6 @@ namespace ModLibrary
                 playerCreateMessage.PlayerR = playerColor.r;
                 playerCreateMessage.PlayerG = playerColor.g;
                 playerCreateMessage.PlayerB = playerColor.b;
-
                 playerCreateMessage.Id = base.netId.Value;
                 NetworkServer.SendToAll((short)MsgIds.CreatePlayerMessage, playerCreateMessage);
             }
@@ -179,17 +191,7 @@ namespace ModLibrary
                     PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, false, Color.red);
                     PhysicalPlayer.entity.TakeControl(); // this took like 4 hours to find out that you need this, it turns out that you need this for the player to work.
 
-                    PlayerInputController playerControll = PhysicalPlayer.GetComponent<PlayerInputController>();
-                    if (playerControll != null)
-                    {
-                        Destroy(playerControll);
-                    }
-
-                    AISwordsmanController aISwordsmanController = PhysicalPlayer.GetComponent<AISwordsmanController>();
-                    if (aISwordsmanController != null)
-                    {
-                        Destroy(aISwordsmanController);
-                    }
+                    
                 }
             }*/
             
@@ -208,9 +210,21 @@ namespace ModLibrary
             Transform spawnPoint = new GameObject().transform;
             spawnPoint.position = SpawnPosition;
             PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, isLocalPlayer, PlayerColor);
-
+            PhysicalColor = PlayerColor;
             if (!isLocalPlayer)
             {
+                PlayerInputController playerController = PhysicalPlayer.GetComponent<PlayerInputController>();
+                if (playerController != null)
+                {
+                    Destroy(playerController);
+                }
+
+                AISwordsmanController aISwordsmanController = PhysicalPlayer.GetComponent<AISwordsmanController>();
+                if (aISwordsmanController != null)
+                {
+                    Destroy(aISwordsmanController);
+                }
+
                 PhysicalPlayer.entity.TakeControl(); // This took like 4 hours to find out that you need this, it turns out that you need this for the player to work.
             }
             
@@ -228,20 +242,15 @@ namespace ModLibrary
         {
             isFakePlayer = false;
 
-            if (!isServer)
-            {
-
-            }
-
         }
-        public void Update()
+        public void OnSimulateController(GameObject _gameObject)
         {
             if (isFakePlayer)
                 return;
-            
+
             if (!isLocalPlayer)
                 return;
-            
+
             if (!Singleton<InputManager>.Instance.IsCursorEnabled())
             {
                 if (PhysicalPlayer != null)
@@ -258,7 +267,6 @@ namespace ModLibrary
                     }
 
                 }
-
                 for (int i = 0; i < KeysToSync.Count; i++)
                 {
                     if (Input.GetKeyDown(KeysToSync[i]))
@@ -279,6 +287,14 @@ namespace ModLibrary
                     }
                 }
             }
+        }
+        public void Update()
+        {
+            if (isFakePlayer)
+                return;
+            
+            if (!isLocalPlayer)
+                return;
 
             if (timer > sendRate)
             {
@@ -305,6 +321,25 @@ namespace ModLibrary
             }
             return null;
         }
+        public static uint[] GetAllPlayersWithoutAPhysicalPlayer()
+        {
+            List<uint> ids = new List<uint>();
+            for (int i = 0; i < Multiplayer.Players.Count; i++)
+            {
+                if (Multiplayer.Players[i].PhysicalPlayer == null)
+                {
+                    ids.Add(Multiplayer.Players[i].netId.Value);
+                }
+            }
+            if (Multiplayer.LocalPlayer != null)
+            {
+                if (ids.Contains(Multiplayer.LocalPlayer.netId.Value))
+                {
+                    ids.Remove(Multiplayer.LocalPlayer.netId.Value);
+                }
+            }
+            return ids.ToArray();
+        }
         void Awake()
         {
             Multiplayer.Players.Add(this);
@@ -315,10 +350,21 @@ namespace ModLibrary
                 return;
 
             Multiplayer.Players.Remove(this);
+            PhysicalPlayer.entity.ReleaseControl();
             Destroy(PhysicalPlayer);
             if (isLocalPlayer)
             {
-                connectionToServer.Disconnect();
+                NetworkManager.singleton.StopClient();
+                NetworkManager.singleton.StopHost();
+                NetworkManager.singleton.StopMatchMaker();
+                Network.Disconnect();
+                NetworkServer.Reset();
+                NetworkManager.Shutdown(); //TODO: fix this so that the server and client disconnect properly (this doesnt do that).
+                GameObject gameObject = ModdedBoltServerStarter.Instance.gameObject;
+                Component.Destroy(ModdedBoltServerStarter.Instance);
+                gameObject.AddComponent<ModdedBoltServerStarter>(); // to restart bolt
+                ModdedNetworkPlayer.hasStartedBolt = false;
+                
             }
         }
     }

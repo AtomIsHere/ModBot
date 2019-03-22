@@ -154,7 +154,9 @@ namespace InternalModBot
         }
         public static void OnSimulateController(GameObject _gameObject)
         {
-
+            if (Multiplayer.LocalPlayer == null)
+                return;
+            Multiplayer.LocalPlayer.OnSimulateController(_gameObject);
 
         }
 

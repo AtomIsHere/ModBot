@@ -105,15 +105,24 @@ namespace InternalModBot
 
         static void PlayerCreateMessageServer(NetworkMessage netMsg)
         {
-            debug.Log("Client attempted to create player!", Color.red);
+            PlayerCreateMessage myMsg = netMsg.ReadMessage<PlayerCreateMessage>();
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(myMsg.Id);
+            for (int i = 0; i < myMsg.MissingPlayers.Length; i++)
+            {
+                ModdedNetworkPlayer missingPlayer = ModdedNetworkPlayer.GetPlayerWithID(myMsg.MissingPlayers[i]);
+                PlayerCreateMessage playerCreateMessage = new PlayerCreateMessage();
+                playerCreateMessage.PlayerR = missingPlayer.PhysicalColor.r;
+                playerCreateMessage.PlayerG = missingPlayer.PhysicalColor.g;
+                playerCreateMessage.PlayerB = missingPlayer.PhysicalColor.b;
+                playerCreateMessage.Id = missingPlayer.netId.Value;
+                player.connectionToClient.Send((short)MsgIds.CreatePlayerMessage, playerCreateMessage);
+            }
         }
 
         static void PlayerCreateMessageClient(NetworkMessage netMsg)
         {
-            Console.WriteLine("nulk-1.5");
             PlayerCreateMessage myMsg = netMsg.ReadMessage<PlayerCreateMessage>();
-
-            Console.WriteLine("nulk-1");
+            
 
             myMsg.CreatePhysicalPlayer();
         }
@@ -343,9 +352,9 @@ namespace InternalModBot
     public class PlayerCreateMessage : MessageBase
     {
         public uint Id;
-        //public Color PlayerColor; cant use color, JsonConvert.SerializeObject(this) breaks as fuck
-        public float PlayerR, PlayerG, PlayerB;
-        
+        public float PlayerR, PlayerG, PlayerB; // Not a color becuase if we use color JsonConvert.SerializeObject(this) breaks as fuck.
+
+        public uint[] MissingPlayers;
 
         public override void Deserialize(NetworkReader reader)
         {
@@ -355,14 +364,12 @@ namespace InternalModBot
             PlayerR = msg.PlayerR;
             PlayerG = msg.PlayerG;
             PlayerB = msg.PlayerB;
+            MissingPlayers = msg.MissingPlayers;
         }
         public override void Serialize(NetworkWriter writer)
         {
-            Console.WriteLine("nulk 52.1");
             string json = JsonConvert.SerializeObject(this);
-            Console.WriteLine("nulk 52.15");
             writer.Write(json);
-            Console.WriteLine("nulk 52.2");
         }
 
         public void CreatePhysicalPlayer()
@@ -371,8 +378,7 @@ namespace InternalModBot
 
             if (player == null)
                 return;
-
-            Console.WriteLine("nulk0");
+            
 
             player.CreatePhysicalPlayer(new Vector3(0, 0, 0), new Color(PlayerR, PlayerG, PlayerB));
         }
