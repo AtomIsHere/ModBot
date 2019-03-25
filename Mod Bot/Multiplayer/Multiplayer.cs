@@ -279,6 +279,21 @@ namespace ModLibrary
                     }
 
                 }
+               
+            }
+        }
+
+
+        public void Update()
+        {
+            if (isFakePlayer)
+                return;
+            
+            if (!isLocalPlayer)
+                return;
+
+            if (!Singleton<InputManager>.Instance.IsCursorEnabled())
+            {
                 for (int i = 0; i < KeysToSync.Count; i++)
                 {
                     if (Input.GetKeyDown(KeysToSync[i]))
@@ -298,18 +313,10 @@ namespace ModLibrary
                         base.connectionToServer.Send((short)MsgIds.KeyPressEvent, msg);
                     }
                 }
+
             }
-        }
 
 
-        public void Update()
-        {
-            if (isFakePlayer)
-                return;
-            
-            if (!isLocalPlayer)
-                return;
-            
             if (timer > sendRate) // to make sure we dont send too many packets over the network
             {
                 if (PhysicalPlayer == null)
