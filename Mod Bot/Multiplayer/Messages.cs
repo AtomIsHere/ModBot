@@ -11,6 +11,7 @@ using ModLibrary;
 
 namespace InternalModBot
 {
+    // the ids of all the diffrent types of messages
     internal enum MsgIds : short
     {
         test = 252,
@@ -21,6 +22,7 @@ namespace InternalModBot
 
     }
 
+    // used to manage the messages comming in, and rerouting them to the proper method
     public static class NetworkMessageManager
     {
         public static void SetupHandelers()
@@ -134,6 +136,8 @@ namespace InternalModBot
 
         
     }
+
+    // from here on down there are just diffrent types of messages
 
     public class TransformMessage : MessageBase
     {

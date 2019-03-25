@@ -138,6 +138,7 @@ namespace InternalModBot
 
     }
 
+    // methods that I cant really put anywhere else
     public static class MultiplayerUtils
     {
         public static GameData CreateNewGameData()

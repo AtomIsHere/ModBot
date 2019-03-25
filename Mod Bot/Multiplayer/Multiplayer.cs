@@ -12,7 +12,7 @@ namespace ModLibrary
 {
     public static class Multiplayer
     {
-        public static NetworkClient Client;
+        
 
         public static ModdedNetworkPlayer LocalPlayer;
 
@@ -27,8 +27,11 @@ namespace ModLibrary
             MultiplayerUtils.GetColorFromRGB(218, 165, 032), // Gold
         };
 
-        private static List<SyncAcrossClients> ObjectsToSyncAcrossClients = new List<SyncAcrossClients>();
+        private static List<SyncAcrossClients> ObjectsToSyncAcrossClients = new List<SyncAcrossClients>(); // will be used later
 
+        internal static NetworkClient Client;
+
+        // called from the UI when we want to start a new server
         public static void StartServer(int port = 8606)
         {
             NetworkServer.Reset();          //stop some crashes
@@ -41,6 +44,7 @@ namespace ModLibrary
             Client = networkManager.StartHost();
             NetworkMessageManager.SetupHandelers();
         }
+        // called from the UI when we want to start a new client
         public static void StartClient(string ip = "localhost", int port = 8606)
         {
             NetworkManager.Shutdown();
@@ -60,16 +64,20 @@ namespace ModLibrary
             NetworkMessageManager.SetupHandelers();
         }
 
+        // will be used to send custom messages from a mod later
         public static void SendMsg()
         {
             throw new NotImplementedException();
         }
+
+        // will be used to sync non player objects positon and rotation later
         public static void StartTrackingObject(GameObject objectToTrack)
         {
             SyncAcrossClients sync = objectToTrack.AddComponent<SyncAcrossClients>();
 
             ObjectsToSyncAcrossClients.Add(sync);
         }
+        // will be used stop to syncing non player objects positon and rotation later
         public static void StopTrackingObject(GameObject objectToTrack)
         {
             SyncAcrossClients sync = objectToTrack.GetComponent<SyncAcrossClients>();
@@ -82,7 +90,7 @@ namespace ModLibrary
 
 
 
-
+        // stuff that should be called when we both start a client or a server
         static void GeneralSetup()
         {
             GameObject player = new GameObject();
@@ -100,7 +108,7 @@ namespace ModLibrary
 
     }
 
-    
+    // doesnt do much at the moment, but can be used later to do some checks (this overwrites the normal networkmanager so we can overwrite methods in it)
     public class ModNetworkManager : NetworkManager
     {
         public override void OnClientConnect(NetworkConnection conn)
@@ -109,7 +117,7 @@ namespace ModLibrary
         }
     }
 
-
+    // TODO: do this
     public class SyncAcrossClients : MonoBehaviour
     {
 
@@ -117,13 +125,21 @@ namespace ModLibrary
 
     public class ModdedNetworkPlayer : NetworkBehaviour
     {
+        // both have to do with the physical player
         public FirstPersonMover PhysicalPlayer;
         public Color PhysicalColor;
+
+        // used to tell if bolt is running so that we can spawn players
         static bool hasStartedBolt = false;
 
+        // used to tell if this is a prefab player or a real player
         bool isFakePlayer = true;
 
+        // how often we should send the position and rotation of the player (in seconds)
         public static float sendRate = 0.1f;
+        float timer; // used to keep track how long it has been since the latest time we sent the positon and rotation of the player
+
+        // keys that we should send to the server when they are pressed / released
         public static List<KeyCode> KeysToSync = new List<KeyCode>()
         {
             KeyCode.Mouse0,
@@ -140,7 +156,9 @@ namespace ModLibrary
             KeyCode.Alpha2,
             KeyCode.Alpha3
         };
-        float timer;
+        
+        
+        
         public void Start()
         {
             if (isFakePlayer) // If player is prefab
@@ -173,7 +191,7 @@ namespace ModLibrary
 
             if (isServer)
             {
-
+                // creates and sends a message to the clients containing info about the player color and id
                 PlayerCreateMessage playerCreateMessage = new PlayerCreateMessage();
                 Color playerColor = MultiplayerUtils.GetNewPlayerColor();
                 playerCreateMessage.PlayerR = playerColor.r;
@@ -182,22 +200,11 @@ namespace ModLibrary
                 playerCreateMessage.Id = base.netId.Value;
                 NetworkServer.SendToAll((short)MsgIds.CreatePlayerMessage, playerCreateMessage);
             }
-
-            /*if (!isLocalPlayer)
-            {
-                else
-                {
-                    Transform spawnPoint = new GameObject().transform;
-                    PhysicalPlayer = GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, false, Color.red);
-                    PhysicalPlayer.entity.TakeControl(); // this took like 4 hours to find out that you need this, it turns out that you need this for the player to work.
-
-                    
-                }
-            }*/
             
             
         }
-
+        
+        // called on the clients when the server tells them to spawn a player
         public void CreatePhysicalPlayer(Vector3 SpawnPosition, Color PlayerColor)
         {
 
@@ -231,6 +238,7 @@ namespace ModLibrary
 
         }
 
+        // does nothing, is mostly here cuz it used to to something
         public override void OnStartServer()
         {
             
@@ -238,11 +246,15 @@ namespace ModLibrary
             
 
         }
+
+        // this function will not be called if the player object is not a real player (this means that it is a prefab)
         public override void OnStartClient()
         {
             isFakePlayer = false;
 
         }
+
+        // called from SimulateController in FirstPersonMover, and is used to send data to the server
         public void OnSimulateController(GameObject _gameObject)
         {
             if (isFakePlayer)
@@ -288,6 +300,8 @@ namespace ModLibrary
                 }
             }
         }
+
+
         public void Update()
         {
             if (isFakePlayer)
@@ -295,21 +309,25 @@ namespace ModLibrary
             
             if (!isLocalPlayer)
                 return;
-
-            if (timer > sendRate)
+            
+            if (timer > sendRate) // to make sure we dont send too many packets over the network
             {
                 if (PhysicalPlayer == null)
                     return;
+
+                // sends position and rotation to server
                 PlayerMoveMessage msg = new PlayerMoveMessage();
                 msg.Id = netId.Value;
                 msg.Position = PhysicalPlayer.transform.position;
                 msg.Rotation = PhysicalPlayer.transform.rotation;
                 base.connectionToServer.SendUnreliable((short)MsgIds.UpdatePlayerTransform, msg);
-                timer = 0;
+
+                timer = 0; // resets the timer
             }
             timer += Time.deltaTime;
         }
 
+        // every player has a uniqe id and this method returns the player that goes with a spesific id
         public static ModdedNetworkPlayer GetPlayerWithID(uint id)
         {
             for (int i = 0; i < Multiplayer.Players.Count; i++)
@@ -321,6 +339,8 @@ namespace ModLibrary
             }
             return null;
         }
+
+        // used on the clients to check what players are not in the world, so that they can ask the server to spawn them for them
         public static uint[] GetAllPlayersWithoutAPhysicalPlayer()
         {
             List<uint> ids = new List<uint>();
@@ -340,10 +360,14 @@ namespace ModLibrary
             }
             return ids.ToArray();
         }
+
+        // adds the player to a list of all players so that we can easily do stuff to all players
         void Awake()
         {
             Multiplayer.Players.Add(this);
         }
+
+        // was supposed to be called when this player disconnects from the server, but it doesnt work so rip
         void OnDestroy()
         {
             if (isFakePlayer)
