@@ -8,6 +8,7 @@ using UnityEngine.Networking;
 using UnityEngine.Networking.NetworkSystem;
 using Newtonsoft.Json;
 using ModLibrary;
+using PicaVoxel;
 
 namespace InternalModBot
 {
@@ -18,7 +19,9 @@ namespace InternalModBot
         UpdatePlayerTransform = 253,
         KeyPressEvent = 254,
         MouseOffsetEvent = 255,
-        CreatePlayerMessage = 251
+        CreatePlayerMessage = 251,
+        CutEventMessage = 150,
+        PlayerDeathEvent = 149
 
     }
 
@@ -44,6 +47,9 @@ namespace InternalModBot
 
             Multiplayer.Client.RegisterHandler((short)MsgIds.CreatePlayerMessage, PlayerCreateMessageClient);
             NetworkServer.RegisterHandler((short)MsgIds.CreatePlayerMessage, PlayerCreateMessageServer);
+
+            Multiplayer.Client.RegisterHandler((short)MsgIds.CutEventMessage, CutEventMessageClient);
+            NetworkServer.RegisterHandler((short)MsgIds.CutEventMessage, CutEventMessageServer);
         }
 
         
@@ -127,6 +133,36 @@ namespace InternalModBot
             
 
             myMsg.CreatePhysicalPlayer();
+        }
+
+        static void CutEventMessageServer(NetworkMessage netMsg)
+        {
+            debug.Log("some client just tried to send a cut event", Color.red);
+        }
+        static void CutEventMessageClient(NetworkMessage netMsg)
+        {
+            CutEventMessage myMsg = netMsg.ReadMessage<CutEventMessage>();
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(myMsg.Id);
+            if (player == null || player.isServer)
+                return;
+
+            
+            myMsg.ApplyToPlayer();
+        }
+
+        static void PlayerDeathEventMessageServer(NetworkMessage netMsg)
+        {
+            debug.Log("some client just tried to send a player death event", Color.red);
+        }
+        static void PlayerDeathMessageClient(NetworkMessage netMsg)
+        {
+            PlayerDeathMessage myMsg = netMsg.ReadMessage<PlayerDeathMessage>();
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(myMsg.Id);
+            if (player == null)
+                return;
+
+
+            myMsg.KillPlayer();
         }
 
         static void StandardMsg(NetworkMessage msg)
@@ -385,6 +421,164 @@ namespace InternalModBot
             
 
             player.CreatePhysicalPlayer(new Vector3(0, 0, 0), new Color(PlayerR, PlayerG, PlayerB));
+        }
+    }
+
+    public class PlayerDeathMessage : MessageBase
+    {
+        public uint Id;
+        public uint? KillerId;
+        public DamageSourceType damageSource;
+
+        public override void Deserialize(NetworkReader reader)
+        {
+            string json = reader.ReadString();
+            PlayerDeathMessage msg = JsonConvert.DeserializeObject<PlayerDeathMessage>(json);
+            Id = msg.Id;
+            damageSource = msg.damageSource;
+        }
+        public override void Serialize(NetworkWriter writer)
+        {
+            string json = JsonConvert.SerializeObject(this);
+            writer.Write(json);
+        }
+
+        public void KillPlayer()
+        {
+            ModdedNetworkPlayer player = ModdedNetworkPlayer.GetPlayerWithID(Id);
+            if (player == null)
+                return;
+
+            ModdedNetworkPlayer killer = null;
+            if (KillerId != null)
+            {
+                killer = ModdedNetworkPlayer.GetPlayerWithID(KillerId.Value);
+            }
+            Character KillerCharacter = killer == null ? null : killer.PhysicalPlayer;
+            
+            player.PhysicalPlayer.Kill(KillerCharacter, damageSource);
+        }
+    }
+
+    public class CutEventMessage : MessageBase
+    {
+        public uint Id;
+        public MechBodyPartType damagedPart;
+        public VoxelPositionsToken VoxelPositionsToken;
+        public DamageSourceType damageSourceType;
+        public FireType fireType;
+        public Vector3 ImpactDirection;
+        public bool IsCuttingDamage;
+        public int AttackID;
+        public bool KnockBack;
+
+        public override void Deserialize(NetworkReader reader)
+        {
+            string json = reader.ReadString();
+            CutEventMessage msg = JsonConvert.DeserializeObject<CutEventMessage>(json);
+            Id = msg.Id;
+            damagedPart = msg.damagedPart;
+            VoxelPositionsToken = msg.VoxelPositionsToken;
+            damageSourceType = msg.damageSourceType;
+            fireType = msg.fireType;
+            ImpactDirection = msg.ImpactDirection;
+            IsCuttingDamage = msg.IsCuttingDamage;
+            AttackID = msg.AttackID;
+            KnockBack = msg.KnockBack;
+
+        }
+        public override void Serialize(NetworkWriter writer)
+        {
+            string json = JsonConvert.SerializeObject(this);
+            writer.Write(json);
+        }
+
+        ModdedNetworkPlayer player;
+
+        public void ApplyToPlayer()
+        {
+            player = ModdedNetworkPlayer.GetPlayerWithID(Id);
+
+            ProcessDamageEvent();
+        }
+       
+        public MechBodyPart GetMechBodyPart()
+        {
+            if (player.PhysicalPlayer == null)
+            {
+                return null;
+            }
+            debug.Log(damagedPart);   
+
+            List<MechBodyPart> parts = player.PhysicalPlayer.GetAllBodyParts();
+            for (int i = 0; i < parts.Count; i++)
+            {
+                if (parts[i].PartType == damagedPart)
+                {
+                    return parts[i];
+                }
+            }
+            return null;
+
+
+        }
+        public void ProcessDamageEvent() // copied out of clone drone and modified
+        {
+            debug.Log("recived cut event");
+            MechBodyPart part = GetMechBodyPart();
+            if (part == null)
+            {
+                debug.Log("part is null");
+                return;
+            }
+            if (part.GetComponent<Volume>() == null)
+            {
+                debug.Log("volume is null");
+                return;
+            }
+
+            Frame currentFrame = part.GetComponent<Volume>().GetCurrentFrame();
+            VoxelPositionsToken voxelPositionsToken = VoxelPositionsToken;
+            Vector3 voxelWorldPosition = currentFrame.GetVoxelWorldPosition(currentFrame.XSize / 2, currentFrame.YSize / 2, currentFrame.ZSize / 2);
+            FireSpreadDefinition fireSpreadDefinition = Singleton<FireManager>.Instance.GetFireSpreadDefinition(fireType);
+            List<PicaVoxelPoint> list = new List<PicaVoxelPoint>();
+            for (int i = 0; i < voxelPositionsToken.VoxelPositions.Count; i++)
+            {
+                PicaVoxelPoint voxelArrayPosition = currentFrame.GetVoxelArrayPosition(voxelPositionsToken.VoxelPositions[i]);
+                list.Add(voxelArrayPosition);
+                Vector3 localPostion = currentFrame.GetLocalPostion(voxelArrayPosition.X, voxelArrayPosition.Y, voxelArrayPosition.Z);
+                Voxel? voxelAtArrayPosition = currentFrame.GetVoxelAtArrayPosition(voxelArrayPosition);
+                if (voxelAtArrayPosition == null)
+                {
+                    continue;
+                }
+                Accessor.CallPrivateMethod(typeof(MechBodyPart), "destroyVoxelAtPositionFromCut", part, new object[] { voxelArrayPosition, voxelAtArrayPosition, localPostion, voxelWorldPosition, ImpactDirection, fireSpreadDefinition, currentFrame });
+            }
+            Character characterWithNetworkID = ModdedNetworkPlayer.GetPlayerWithID(Id).PhysicalPlayer;
+            if (damageSourceType == DamageSourceType.Arrow || damageSourceType == DamageSourceType.DeflectedArrow || damageSourceType == DamageSourceType.SawBlade || damageSourceType == DamageSourceType.SpikeTrap)
+            {
+                Singleton<AttackManager>.Instance.PlayCutDamageSoundForNewtworkCutEvent(AttackID, fireSpreadDefinition != null, part.transform);
+            }
+            else if (IsCuttingDamage && characterWithNetworkID != null)
+            {
+                FirstPersonMover firstPersonMover = characterWithNetworkID as FirstPersonMover;
+                if (firstPersonMover != null)
+                {
+                    firstPersonMover.TryPlayImpactSoundForCurrentWeapon(AttackID, part.transform);
+                }
+            }
+            List<MechBodyPart> list2 = part.DisconnectSegmentsAfterCut(list, AttackID, ImpactDirection.normalized, KnockBack, characterWithNetworkID, damageSourceType);
+            if (IsCuttingDamage && fireSpreadDefinition != null)
+            {
+                Accessor.SetPrivateField(typeof(MechBodyPart), "_lastFireDamageOrigin", part, characterWithNetworkID);
+                Accessor.SetPrivateField(typeof(MechBodyPart), "_lastSourceOfFire", part, damageSourceType);
+
+                for (int j = 0; j < list2.Count; j++)
+                {
+                    Accessor.CallPrivateMethod(typeof(MechBodyPart), "setFireIfNextTo", list2[j], new object[] { list, fireSpreadDefinition });
+                }
+            }
+            debug.Log("2");
         }
     }
 }

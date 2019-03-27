@@ -29,7 +29,7 @@ namespace ModLibrary
 
         private static List<SyncAcrossClients> ObjectsToSyncAcrossClients = new List<SyncAcrossClients>(); // will be used later
 
-        internal static NetworkClient Client;
+        public static NetworkClient Client;
 
         // called from the UI when we want to start a new server
         public static void StartServer(int port = 8606)
@@ -63,7 +63,10 @@ namespace ModLibrary
 
             NetworkMessageManager.SetupHandelers();
         }
-
+        public static bool IsMultiplayerOn()
+        {
+            return Client != null;
+        }
         // will be used to send custom messages from a mod later
         public static void SendMsg()
         {
@@ -166,7 +169,6 @@ namespace ModLibrary
                 Multiplayer.Players.Remove(this);
                 return;
             }
-
             if (isLocalPlayer)
             {
                 Multiplayer.LocalPlayer = this;
@@ -207,7 +209,6 @@ namespace ModLibrary
         // called on the clients when the server tells them to spawn a player
         public void CreatePhysicalPlayer(Vector3 SpawnPosition, Color PlayerColor)
         {
-
             if (!hasStartedBolt)
             {
                 Delayed.TriggerAfterDelay(new fakeAction(typeof(ModdedNetworkPlayer).GetMethod("CreatePhysicalPlayer"), this, new object[] { SpawnPosition, PlayerColor }), 1);
@@ -346,6 +347,21 @@ namespace ModLibrary
             }
             return null;
         }
+
+        // gets the player that goes with a physical player
+        public static ModdedNetworkPlayer GetPlayerWithPhysicalPlayer(FirstPersonMover player)
+        {
+            for (int i = 0; i < Multiplayer.Players.Count; i++)
+            {
+                if (Multiplayer.Players[i].PhysicalPlayer == player)
+                {
+                    return Multiplayer.Players[i];
+                }
+            }
+            return null;
+        }
+
+        
 
         // used on the clients to check what players are not in the world, so that they can ask the server to spawn them for them
         public static uint[] GetAllPlayersWithoutAPhysicalPlayer()

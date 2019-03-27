@@ -26,6 +26,11 @@ public override void SimulateController()
 		MultiplayerUtils.OnSimulateController(base.gameObject);
 	}
 
+	protected override void onDeath(Character killer, DamageSourceType damageSourceType)
+	{
+		MultiplayerUtils.OnDeath(this, killer, damageSourceType);
+	}
+
 LevelEditorUI
 Show()
 {
@@ -97,3 +102,41 @@ public ObjectPlacedInLevel PlaceObjectInLevelRoot(LevelObjectEntry objectPlacedL
 			transform = Resources.Load<Transform>(objectPlacedLevelObjectEntry.PathUnderResources);
 		}
 }
+
+
+MechBodyPart
+TryCutVolume
+if (Multiplayer.IsMultiplayerOn())
+			{
+				BodyPartDamageEvent bodyPartDamageEvent = BodyPartDamageEvent.Create(GlobalTargets.AllClients, ReliabilityModes.ReliableOrdered);
+				bodyPartDamageEvent.BodyPartName = this._bodyPartID.Name;
+				bodyPartDamageEvent.BodyPartType = (int)this._bodyPartID.Type;
+				bodyPartDamageEvent.OwnerID = ownerID;
+				bodyPartDamageEvent.AttackID = attackID;
+				bodyPartDamageEvent.ImpactDirection = normalized;
+				bodyPartDamageEvent.VoxelPositionsToken = new VoxelPositionsToken(list, currentFrame);
+				bodyPartDamageEvent.DamageOriginID = ((!(damageOrigin != null) || damageOrigin.IsDetached()) ? default(NetworkId) : damageOrigin.GetNetworkID());
+				bodyPartDamageEvent.KnockBack = KnockbackOnImpact;
+				bodyPartDamageEvent.FireType = (int)((fireSpreadDefinition == null) ? FireType.None : fireSpreadDefinition.FireType);
+				bodyPartDamageEvent.IsCuttingDamage = true;
+				bodyPartDamageEvent.DamageSourceType = (int)damageSourceType;
+				DamageProcessor.OnCutVolume(base.gameObject, bodyPartDamageEvent);
+			}
+
+MechBodyPart
+public bool IsAllowedToCalculateDamage(FirstPersonMover attacker = null, bool allowClientForAliveCharacter = true)
+	{
+		if (!BoltNetwork.isRunning)
+		{
+			return false;
+		}
+		if (Multiplayer.IsMultiplayerOn()) {
+			if (Multiplayer.LocalPlayer == null)
+				return false;
+			if (Multiplayer.LocalPlayer.isServer) {
+				return true;
+			} else {
+				return false;
+			}
+			
+		}

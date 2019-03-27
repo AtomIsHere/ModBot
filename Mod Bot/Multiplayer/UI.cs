@@ -114,7 +114,6 @@ namespace InternalModBot
             string moddedLevelsPath = Application.persistentDataPath + "/ModdedLevels/";
             string moddedLevelJsonPath = Application.persistentDataPath + "/ModdedLevels/ModdedMultiplayerTestLevel.json";
             const string moddedLevelDownloadLink = "https://cdn.discordapp.com/attachments/526159007442927648/558703015255867410/ModdedMultiplayerTestLevel.json";
-
             InternalUtils.SaveFileToDirectory(moddedLevelDownloadLink, moddedLevelJsonPath);
 
             List<LevelDescription> levelList = new List<LevelDescription>();
@@ -136,60 +135,6 @@ namespace InternalModBot
             GameFlowManager.Instance.HideTitleScreen(true);
         }
 
-    }
-
-    // methods that I cant really put anywhere else
-    public static class MultiplayerUtils
-    {
-        public static GameData CreateNewGameData()
-        {
-            GameData gameData = new GameData
-            {
-                NumClones = Singleton<CloneManager>.Instance.GetNumStartingClones(),
-                NumLevelsWon = 0,
-                AvailableSkillPoints = 0,
-                PlayerUpgrades = Singleton<UpgradeManager>.Instance.CreateDefaultPlayerUpgrades(),
-                HumanFacts = Singleton<HumanFactsManager>.Instance.GetRandomFactSet(),
-                LevelIDsBeatenThisPlaythrough = new List<string>(),
-                LevelPrefabsBeatenThisPlaythrough = new List<string>(),
-                PlayerArmorParts = new List<MechBodyPartType>(),
-                PlayerBodyPartDamages = new List<MechBodyPartDamage>()
-            };
-
-            gameData.SetDirty(true);
-
-            return gameData;
-        }
-        public static void OnSimulateController(GameObject _gameObject)
-        {
-            if (Multiplayer.LocalPlayer == null)
-                return;
-            Multiplayer.LocalPlayer.OnSimulateController(_gameObject);
-
-        }
-
-        public static Color GetColorFromRGB(float r, float g, float b)
-        {
-            return new Color(r / 255f, g / 255f, b / 255f);
-        }
-
-        public static List<Color> GetHumanFactSetColors()
-        {
-            List<Color> colors = new List<Color>();
-            HumanFavouriteColor[] humanColors = HumanFactsManager.Instance.FavouriteColors;
-
-            for (int i = 0; i < humanColors.Length; i++)
-            {
-                colors.Add(humanColors[i].ColorValue);
-            }
-
-            return colors;
-        }
-
-        public static Color GetNewPlayerColor()
-        {
-            return Multiplayer.PossiblePlayerColors[UnityEngine.Random.Range(0, Multiplayer.PossiblePlayerColors.Count - 1)];
-        }
     }
 
 
@@ -239,5 +184,4 @@ namespace InternalModBot
         public delegate void CallBackDeligate();
         private CallBackDeligate _startedCallback;
     }
-
 }
