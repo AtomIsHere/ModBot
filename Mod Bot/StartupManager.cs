@@ -1,5 +1,6 @@
 ﻿using ModLibrary;
 using UnityEngine;
+using InternalModBot.Multiplayer;
 
 namespace InternalModBot
 {
@@ -17,6 +18,9 @@ namespace InternalModBot
             gameFlowManager.AddComponent<UpdateChecker>();
             gameFlowManager.AddComponent<ModsPanelManager>();
             gameFlowManager.AddComponent<CustomUpgradeManger>();
+            gameFlowManager.AddComponent<ModdedMultiplayerUIManager>();
+            gameFlowManager.AddComponent<ModdedMultiplayerManager>();
+            gameFlowManager.AddComponent<ModdedBoltServerStarter>();
 
             IgnoreCrashesManager.Start();
         }

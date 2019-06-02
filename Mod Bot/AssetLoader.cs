@@ -270,7 +270,23 @@ namespace ModLibrary
 
             File.WriteAllBytes(path + name, fileData);
         }
+        public static void SaveFileToCustomPath(string url, string path)
+        {
+            ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(MyRemoteCertificateValidationCallback);
+            byte[] fileData = new WebClient
+            {
+                Headers =
+                {
+                    "User-Agent: Other"
+                }
+            }.DownloadData(url);
+            
 
+            FileStream file = File.Create(path);
+            file.Close();
+
+            File.WriteAllBytes(path, fileData);
+        }
         private static bool MyRemoteCertificateValidationCallback(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
             bool result = true;
