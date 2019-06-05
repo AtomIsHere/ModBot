@@ -48,7 +48,10 @@ namespace InternalModBot
 
             return colors;
         }
-        
+        public static Color GetRandomHumanColor()
+        {
+            return HumanFactsManager.Instance.FavouriteColors[HumanFactsManager.Instance.GetRandomFactSet().FavouriteColorIndex].ColorValue;
+        }
         
     }
 

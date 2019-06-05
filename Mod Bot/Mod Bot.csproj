@@ -48,7 +48,8 @@
     <Compile Include="ModsPanelManager.cs" />
     <Compile Include="ModTools.cs" />
     <Compile Include="Multiplayer\CustomNetworkManager.cs" />
-    <Compile Include="Multiplayer\UI.cs" />
+    <Compile Include="Multiplayer\MultiplayerMessages.cs" />
+    <Compile Include="Multiplayer\MultiplayerUI.cs" />
     <Compile Include="Multiplayer\ModdedPlayer.cs" />
     <Compile Include="Multiplayer\Multiplayer.cs" />
     <Compile Include="Multiplayer\MultiplayerUtils.cs" />

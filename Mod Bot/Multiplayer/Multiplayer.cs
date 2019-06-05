@@ -17,7 +17,8 @@ namespace InternalModBot.Multiplayer
             NetworkManager networkManager = NetworkManager.singleton;
             networkManager.networkPort = port;
             networkManager.StartHost();
-            
+
+            MultiplayerMessages.SetupHandelers();
         }
         public void StartClient(string ip, int port)
         {
@@ -26,12 +27,14 @@ namespace InternalModBot.Multiplayer
             
             NetworkClient client = NetworkManager.singleton.StartClient();
             client.Connect(ip, port);
+
+            MultiplayerMessages.SetupHandelers();
         }
 
 
         void GeneralSetup()
         {
-
+           
             Accessor.SetPrivateField(typeof(GameFlowManager), "_gameMode", GameFlowManager.Instance, GameMode.SingleLevelPlaytest);
 
 
@@ -69,10 +72,10 @@ namespace InternalModBot.Multiplayer
             GameObject Prefab = new GameObject();
             Prefab.AddComponent<ModdedNetworkPlayer>();
             networkManager.playerPrefab = Prefab;
+            networkManager.autoCreatePlayer = true;
 
 
-            Transform spawnPoint = new GameObject().transform;
-            GameFlowManager.Instance.SpawnPlayer(spawnPoint, true, true);
+            
         }
     }
 }
